@@ -11,10 +11,9 @@
 		A10002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002; };
 		A10003 /* GameConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003; };
 		A10004 /* LevelDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004; };
-		A10005 /* TrainNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005; };
-		A10006 /* PlacedToolNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006; };
-		A10007 /* GameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007; };
 		A10008 /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008; };
+		A10009 /* Game3DScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009; };
+		A10010 /* WaveSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,10 +21,9 @@
 		B10002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B10003 /* GameConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConstants.swift; sourceTree = "<group>"; };
 		B10004 /* LevelDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelDefinitions.swift; sourceTree = "<group>"; };
-		B10005 /* TrainNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainNode.swift; sourceTree = "<group>"; };
-		B10006 /* PlacedToolNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlacedToolNode.swift; sourceTree = "<group>"; };
-		B10007 /* GameScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameScene.swift; sourceTree = "<group>"; };
 		B10008 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
+		B10009 /* Game3DScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Game3DScene.swift; sourceTree = "<group>"; };
+		B10010 /* WaveSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveSystem.swift; sourceTree = "<group>"; };
 		C10001 /* RailwayEngineer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RailwayEngineer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -45,10 +43,9 @@
 				B10002,
 				B10003,
 				B10004,
-				B10005,
-				B10006,
-				B10007,
 				B10008,
+				B10009,
+				B10010,
 			);
 			path = RailwayEngineer;
 			sourceTree = "<group>";
@@ -116,10 +113,9 @@
 				A10002,
 				A10003,
 				A10004,
-				A10005,
-				A10006,
-				A10007,
 				A10008,
+				A10009,
+				A10010,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

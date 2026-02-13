@@ -1,13 +1,17 @@
 import SwiftUI
-import SpriteKit
+import SceneKit
 import Combine
 
 // MARK: - Game View Model
-class GameViewModel: ObservableObject, GameSceneDelegate {
+class GameViewModel: ObservableObject {
+    
+    // Wave System
+    @Published var currentWave: Int = 0
+    @Published var waveTitle: String = ""
+    @Published var waveDescription: String = ""
+    @Published var totalTrainsPassed: Int = 0
     
     // Published state
-    @Published var currentLevel: Int = 0
-    @Published var maxUnlockedLevel: Int = 0
     @Published var gameState: GameState = .idle
     @Published var trainsPassed: Int = 0
     @Published var requiredPasses: Int = 3
@@ -19,71 +23,64 @@ class GameViewModel: ObservableObject, GameSceneDelegate {
     @Published var selectedToolType: ToolType? = nil
     @Published var toolSlots: [ToolSlot] = []
     
-    @Published var levelTitle: String = ""
-    @Published var incidents: [IncidentItem] = []
-    @Published var objective: String = ""
-    
     @Published var showStartScreen: Bool = true
-    @Published var showSuccessOverlay: Bool = false
+    @Published var showWaveCompleteOverlay: Bool = false
     @Published var showFailOverlay: Bool = false
     @Published var failMessage: String = ""
-    @Published var showLevelSelect: Bool = false
     
-    // Scene
-    let scene: GameScene
+    // 3D Scene
+    let game3DScene: Game3DScene
     
     init() {
-        scene = GameScene(size: CGSize(width: 1000, height: 600))
-        scene.scaleMode = .resizeFill
-        scene.gameDelegate = self
-        
-        // Tool usage callback
-        scene.onToolUsed = { [weak self] type, isPlacing in
-            self?.handleToolUsed(type: type, isPlacing: isPlacing)
-        }
-        
-        loadProgress()
+        game3DScene = Game3DScene()
+        setupCallbacks()
     }
     
-    // MARK: - Level Management
+    private func setupCallbacks() {
+        game3DScene.onStateChanged = { [weak self] state in
+            self?.gameStateChanged(state)
+        }
+        game3DScene.onTrainsPassed = { [weak self] passed, required in
+            self?.trainPassedUpdated(passed: passed, required: required)
+        }
+        game3DScene.onCollision = { [weak self] count in
+            self?.collisionCountUpdated(count)
+        }
+        game3DScene.onDerailment = { [weak self] count in
+            self?.derailmentCountUpdated(count)
+        }
+        game3DScene.onTimerUpdated = { [weak self] ticks in
+            self?.timerUpdated(ticks)
+        }
+        game3DScene.onToolUsed = { [weak self] type, isPlacing in
+            self?.handleToolUsed(type: type, isPlacing: isPlacing)
+        }
+        game3DScene.onWaveChanged = { [weak self] wave, title, description in
+            self?.waveChanged(wave: wave, title: title, description: description)
+        }
+        game3DScene.onWaveComplete = { [weak self] wave in
+            self?.waveComplete(wave: wave)
+        }
+    }
+    
+    // MARK: - Game Start
     
     func startGame() {
         showStartScreen = false
-        loadLevel(0)
+        game3DScene.startWaveMode()
     }
     
-    func loadLevel(_ index: Int) {
-        currentLevel = index
-        let def = LevelFactory.create(level: index)
-        
-        levelTitle = def.title
-        incidents = def.incidents
-        objective = def.objective
-        requiredPasses = def.requiredPasses
-        toolSlots = def.tools
-        selectedToolType = nil
-        
-        scene.selectedToolType = nil
-        scene.toolSlots = toolSlots
-        scene.loadLevel(index: index)
-        
-        showSuccessOverlay = false
+    func resetCurrentWave() {
         showFailOverlay = false
+        showWaveCompleteOverlay = false
+        game3DScene.resetLevel()
     }
     
-    func resetLevel() {
+    func fullReset() {
         showFailOverlay = false
-        showSuccessOverlay = false
-        loadLevel(currentLevel)
-    }
-    
-    func nextLevel() {
-        showSuccessOverlay = false
-        if currentLevel + 1 < LevelFactory.totalLevels {
-            loadLevel(currentLevel + 1)
-        } else {
-            showLevelSelect = true
-        }
+        showWaveCompleteOverlay = false
+        totalTrainsPassed = 0
+        game3DScene.fullReset()
     }
     
     // MARK: - Simulation Control
@@ -91,11 +88,11 @@ class GameViewModel: ObservableObject, GameSceneDelegate {
     func toggleSimulation() {
         switch gameState {
         case .idle:
-            scene.startSimulation()
+            game3DScene.startSimulation()
         case .running:
-            scene.pauseSimulation()
+            game3DScene.pauseSimulation()
         case .paused:
-            scene.resumeSimulation()
+            game3DScene.resumeSimulation()
         default:
             break
         }
@@ -103,7 +100,7 @@ class GameViewModel: ObservableObject, GameSceneDelegate {
     
     func setSpeed(_ speed: CGFloat) {
         simSpeed = speed
-        scene.setSimSpeed(speed)
+        game3DScene.setSimSpeed(speed)
     }
     
     // MARK: - Tool Selection
@@ -111,12 +108,11 @@ class GameViewModel: ObservableObject, GameSceneDelegate {
     func selectTool(_ type: ToolType) {
         if selectedToolType == type {
             selectedToolType = nil
-            scene.selectedToolType = nil
+            game3DScene.selectedToolType = nil
         } else {
-            // Check remaining
             if let slot = toolSlots.first(where: { $0.type == type }), slot.remaining > 0 {
                 selectedToolType = type
-                scene.selectedToolType = type
+                game3DScene.selectedToolType = type
             }
         }
     }
@@ -124,30 +120,27 @@ class GameViewModel: ObservableObject, GameSceneDelegate {
     private func handleToolUsed(type: ToolType, isPlacing: Bool) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            if let idx = self.toolSlots.firstIndex(where: { $0.type == type }) {
-                if isPlacing {
-                    self.toolSlots[idx].usedCount += 1
-                } else {
-                    self.toolSlots[idx].usedCount = max(0, self.toolSlots[idx].usedCount - 1)
-                }
-                
-                // Deselect if no remaining
-                if self.toolSlots[idx].remaining <= 0 && self.selectedToolType == type {
+            // 도구 슬롯은 game3DScene에서 관리하므로 동기화
+            self.toolSlots = self.game3DScene.toolSlots
+            
+            if self.toolSlots.first(where: { $0.type == type })?.remaining ?? 0 <= 0 {
+                if self.selectedToolType == type {
                     self.selectedToolType = nil
-                    self.scene.selectedToolType = nil
+                    self.game3DScene.selectedToolType = nil
                 }
             }
         }
     }
     
-    // MARK: - GameSceneDelegate
+    // MARK: - Scene Callbacks
     
     func gameStateChanged(_ state: GameState) {
         DispatchQueue.main.async { [weak self] in
             self?.gameState = state
             switch state {
             case .success:
-                self?.handleSuccess()
+                // 웨이브 완료는 onWaveComplete에서 처리
+                break
             case .fail(let msg):
                 self?.failMessage = msg
                 self?.showFailOverlay = true
@@ -182,22 +175,21 @@ class GameViewModel: ObservableObject, GameSceneDelegate {
         }
     }
     
-    // MARK: - Success / Progress
-    
-    private func handleSuccess() {
-        if currentLevel >= maxUnlockedLevel {
-            maxUnlockedLevel = currentLevel + 1
-            saveProgress()
+    func waveChanged(wave: Int, title: String, description: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.currentWave = wave
+            self?.waveTitle = title
+            self?.waveDescription = description
+            self?.showWaveCompleteOverlay = false
+            self?.toolSlots = self?.game3DScene.toolSlots ?? []
         }
-        showSuccessOverlay = true
     }
     
-    private func saveProgress() {
-        UserDefaults.standard.set(maxUnlockedLevel, forKey: "railwayMaxLevel")
-    }
-    
-    private func loadProgress() {
-        maxUnlockedLevel = UserDefaults.standard.integer(forKey: "railwayMaxLevel")
+    func waveComplete(wave: Int) {
+        DispatchQueue.main.async { [weak self] in
+            self?.totalTrainsPassed += self?.trainsPassed ?? 0
+            self?.showWaveCompleteOverlay = true
+        }
     }
     
     // MARK: - Helpers
@@ -215,9 +207,9 @@ class GameViewModel: ObservableObject, GameSceneDelegate {
     var statusText: String {
         switch gameState {
         case .idle: return "READY — 도구를 배치하고 RUN을 누르세요"
-        case .running: return "RUNNING — 시뮬레이션 진행 중..."
+        case .running: return "WAVE \(currentWave) 진행 중..."
         case .paused: return "PAUSED"
-        case .success: return "SYSTEM STABILIZED ✅"
+        case .success: return "WAVE \(currentWave) CLEAR! ✅"
         case .fail: return "SYSTEM FAILURE ❌"
         }
     }
